@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="my">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin - mm-library</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 font-sans">
+
+  <header class="bg-white shadow p-4 flex justify-between">
+    <h1 class="text-2xl font-bold text-indigo-600">📘 Admin Panel (Supabase)</h1>
+    <a href="../reader/" class="text-sm text-indigo-600 underline">Reader Site</a>
+  </header>
+
+  <main id="content" class="p-4"></main>
+
+  <script>
+  // ===== SUPABASE CONFIG =====
+  const SUPABASE_URL = "https://ihgxlrghvfajsrofbihk.supabase.co";
+  const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImloZ3hscmdodmZhanNyb2ZiaWhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI4NzA3MDgsImV4cCI6MjA3ODQ0NjcwOH0.oIcQ2jjg2paldnsHIoYKEQJtYr9DQ9xboQU15FDXQa8";
+
+  const headers = {
+    apikey: SUPABASE_KEY,
+    Authorization: `Bearer ${SUPABASE_KEY}`,
+    "Content-Type": "application/json"
+  };
+
+  async function fetchBooks() {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/books`, { headers });
+    return await res.json();
+  }
+
+  async function addBook(title, author) {
+    const body = JSON.stringify({ title, author, chapters: [] });
+    await fetch(`${SUPABASE_URL}/rest/v1/books`, {
+      method: "POST", headers, body
+    });
+  }
+
+  async function addChapter(bookId, chapter) {
+    const books = await fetchBooks();
+    const book = books.find(b => b.id === bookId);
+    if (!book) return alert("Book not found!");
+    book.chapters.push(chapter);
+    await fetch(`${SUPABASE_URL}/rest/v1/books?id=eq.${bookId}`, {
+      method: "PATCH", headers, body: JSON.stringify({ chapters: book.chapters })
+    });
+  }
+
+  // ====== UI ======
+  let books = [];
+
+  async function showPanel() {
+    books = await fetchBooks();
+    const container = document.getElementById("content");
+    container.innerHTML = `
+      <div class="max-w-3xl mx-auto bg-white rounded shadow p-4">
+        <h2 class="text-xl font-bold mb-4">စာအုပ်ထည့်ခြင်း</h2>
+        <form id="addBook" class="space-y-2">
+          <input id="title" placeholder="စာအုပ်အမည်" class="w-full border p-2 rounded" required />
+          <input id="author" placeholder="စာရေးသူ" class="w-full border p-2 rounded" />
+          <button class="bg-green-600 text-white w-full py-2 rounded">စာအုပ် ထည့်မည်</button>
+        </form>
+        <div class="mt-4">
+          <h3 class="font-bold mb-2">လက်ရှိစာအုပ်များ</h3>
+          <div id="bookList"></div>
+        </div>
+      </div>
+    `;
+    updateBookList();
+    document.getElementById("addBook").onsubmit = async e => {
+      e.preventDefault();
+      const title = document.getElementById("title").value.trim();
+      const author = document.getElementById("author").value.trim();
+      await addBook(title, author);
+      showPanel();
+    };
+  }
+
+  function updateBookList() {
+    const el = document.getElementById("bookList");
+    el.innerHTML = books.map(b => `
+      <div class="border-b p-2 flex justify-between items-center">
+        <span>${b.title}</span>
+        <button onclick="editBook('${b.id}')" class="text-indigo-600 underline">အခန်း ထည့်မည်</button>
+      </div>
+    `).join('') || '<p class="text-gray-400 text-sm">စာအုပ်မရှိသေးပါ...</p>';
+  }
+
+  function editBook(id) {
+    const book = books.find(b => b.id === id);
+    const container = document.getElementById("content");
+    container.innerHTML = `
+      <button onclick="showPanel()" class="text-indigo-600 underline mb-3">← ပြန်သွားမည်</button>
+      <div class="bg-white p-4 rounded shadow">
+        <h2 class="text-xl font-bold mb-4">${book.title}</h2>
+        <form id="addChapter" class="space-y-2">
+          <input id="chTitle" placeholder="အခန်း ခေါင်းစဉ်" class="w-full border p-2 rounded" required />
+          <textarea id="chContent" placeholder="အကြောင်းအရာ" class="w-full border p-2 rounded h-32" required></textarea>
+          <button class="bg-purple-600 text-white w-full py-2 rounded">အခန်း ထည့်မည်</button>
+        </form>
+        <div id="chapterList" class="mt-3"></div>
+      </div>
+    `;
+    updateChapters(book);
+    document.getElementById("addChapter").onsubmit = async e => {
+      e.preventDefault();
+      const title = document.getElementById("chTitle").value.trim();
+      const content = document.getElementById("chContent").value.trim();
+      await addChapter(id, { title, content });
+      showPanel();
+    };
+  }
+
+  function updateChapters(book) {
+    const el = document.getElementById("chapterList");
+    el.innerHTML = (book.chapters || []).map((c,i)=>`
+      <div class="border-b p-2">${i+1}. ${c.title}</div>
+    `).join('') || '<p class="text-gray-400 text-sm">အခန်း မရှိသေးပါ...</p>';
+  }
+
+  document.addEventListener("DOMContentLoaded", showPanel);
+  </script>
+
+</body>
+</html>
